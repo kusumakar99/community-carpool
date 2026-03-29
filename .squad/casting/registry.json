@@ -1,0 +1,6 @@
+[
+  { "persistent_name": "Maverick", "universe": "top-gun", "role": "Lead", "created_at": "2025-03-29T15:32:00Z", "legacy_named": false, "status": "active" },
+  { "persistent_name": "Goose", "universe": "top-gun", "role": "Backend Dev", "created_at": "2025-03-29T15:32:00Z", "legacy_named": false, "status": "active" },
+  { "persistent_name": "Iceman", "universe": "top-gun", "role": "Frontend Dev", "created_at": "2025-03-29T15:32:00Z", "legacy_named": false, "status": "active" },
+  { "persistent_name": "Viper", "universe": "top-gun", "role": "Tester", "created_at": "2025-03-29T15:32:00Z", "legacy_named": false, "status": "active" }
+]

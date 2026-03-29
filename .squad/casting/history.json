@@ -1,0 +1,9 @@
+[
+  {
+    "assignment_id": "topgun-001",
+    "universe": "top-gun",
+    "assigned_at": "2025-03-29T15:32:00Z",
+    "agents": ["Maverick", "Goose", "Iceman", "Viper"],
+    "project": "Community CarPool Tool"
+  }
+]
