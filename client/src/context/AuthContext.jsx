@@ -44,8 +44,8 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  const register = async (email, phone, username, password) => {
-    const res = await api.post('/auth/register', { email, phone, username, password });
+  const register = async (email, phone, username, password, gender, age) => {
+    const res = await api.post('/auth/register', { email, phone, username, password, gender: gender || undefined, age: age ? parseInt(age, 10) : undefined });
     return res.data; // Returns { message, previewUrl } — no token yet
   };
 

@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 
 export default function Register() {
   const [step, setStep] = useState('form'); // 'form' | 'otp'
-  const [form, setForm] = useState({ email: '', phone: '', username: '', password: '', confirmPassword: '' });
+  const [form, setForm] = useState({ email: '', phone: '', username: '', password: '', confirmPassword: '', gender: '', age: '' });
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -34,10 +34,13 @@ export default function Register() {
     if (form.password !== form.confirmPassword) {
       return setError('Passwords do not match.');
     }
+    if (form.age && (isNaN(form.age) || parseInt(form.age, 10) < 18)) {
+      return setError('Age must be 18 or above.');
+    }
 
     setLoading(true);
     try {
-      const data = await register(form.email, form.phone, form.username, form.password);
+      const data = await register(form.email, form.phone, form.username, form.password, form.gender, form.age);
       setSuccess(data.message || 'OTP sent to your email!');
       setStep('otp');
     } catch (err) {
@@ -125,6 +128,24 @@ export default function Register() {
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all"
                   placeholder="+91 9876543210"
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Gender</label>
+                  <select name="gender" value={form.gender} onChange={handleChange}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all bg-white">
+                    <option value="">Select gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Age</label>
+                  <input type="number" name="age" value={form.age} onChange={handleChange} min="18" max="100"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all"
+                    placeholder="25" />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Username</label>

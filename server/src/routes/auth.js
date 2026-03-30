@@ -11,7 +11,7 @@ const router = express.Router();
 // POST /api/auth/register — Step 1: Validate, send OTP
 router.post('/register', async (req, res) => {
   try {
-    const { email: rawEmail, phone, username, password } = req.body;
+    const { email: rawEmail, phone, username, password, gender, age } = req.body;
 
     if (!rawEmail || !phone || !username || !password) {
       return res.status(400).json({ error: 'Email, phone, username, and password are required.' });
@@ -21,6 +21,18 @@ router.post('/register', async (req, res) => {
     const phoneTrimmed = phone.trim();
     if (!/^[+\d][\d\s\-()]{9,}$/.test(phoneTrimmed)) {
       return res.status(400).json({ error: 'Please enter a valid phone number (10+ digits, optionally starting with +).' });
+    }
+
+    // Validate optional gender
+    const validGenders = ['Male', 'Female', 'Other'];
+    if (gender && !validGenders.includes(gender)) {
+      return res.status(400).json({ error: 'Gender must be Male, Female, or Other.' });
+    }
+
+    // Validate optional age
+    const parsedAge = age != null && age !== '' ? parseInt(age, 10) : null;
+    if (parsedAge !== null && (isNaN(parsedAge) || parsedAge < 18)) {
+      return res.status(400).json({ error: 'Age must be a number 18 or above.' });
     }
 
     const email = rawEmail.trim().toLowerCase();
@@ -50,8 +62,8 @@ router.post('/register', async (req, res) => {
     // Upsert pending OTP (replace if user re-requests)
     await prisma.otpVerification.upsert({
       where: { email },
-      update: { phone: phoneTrimmed, username, password: hashedPassword, otp, expiresAt },
-      create: { email, phone: phoneTrimmed, username, password: hashedPassword, otp, expiresAt },
+      update: { phone: phoneTrimmed, username, password: hashedPassword, otp, expiresAt, gender: gender || null, age: parsedAge },
+      create: { email, phone: phoneTrimmed, username, password: hashedPassword, otp, expiresAt, gender: gender || null, age: parsedAge },
     });
 
     // Send same OTP to both email and phone
@@ -113,6 +125,8 @@ router.post('/verify-otp', async (req, res) => {
           phone: pending.phone,
           username: pending.username,
           password: pending.password,
+          gender: pending.gender,
+          age: pending.age,
         },
       });
       await tx.otpVerification.delete({ where: { email } });
@@ -123,7 +137,7 @@ router.post('/verify-otp', async (req, res) => {
 
     return res.status(201).json({
       token,
-      user: { id: user.id, email: user.email, phone: user.phone, username: user.username, creditBalance: user.creditBalance, role: user.role },
+      user: { id: user.id, email: user.email, phone: user.phone, username: user.username, gender: user.gender, age: user.age, creditBalance: user.creditBalance, role: user.role },
     });
   } catch (err) {
     console.error('Verify OTP error:', err);
@@ -196,7 +210,7 @@ router.post('/login', async (req, res) => {
 
     return res.json({
       token,
-      user: { id: user.id, email: user.email, phone: user.phone, username: user.username, creditBalance: user.creditBalance, role: user.role },
+      user: { id: user.id, email: user.email, phone: user.phone, username: user.username, gender: user.gender, age: user.age, creditBalance: user.creditBalance, role: user.role },
     });
   } catch (err) {
     console.error('Login error:', err);
@@ -207,8 +221,8 @@ router.post('/login', async (req, res) => {
 // GET /api/auth/me
 router.get('/me', auth, async (req, res) => {
   try {
-    const { id, email, phone, username, creditBalance, role, createdAt } = req.user;
-    return res.json({ user: { id, email, phone, username, creditBalance, role, createdAt } });
+    const { id, email, phone, username, gender, age, creditBalance, role, createdAt } = req.user;
+    return res.json({ user: { id, email, phone, username, gender, age, creditBalance, role, createdAt } });
   } catch (err) {
     console.error('Me error:', err);
     return res.status(500).json({ error: 'Internal server error.' });

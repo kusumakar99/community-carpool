@@ -14,6 +14,8 @@ model User {
   phone         String         @unique
   username      String         @unique
   password      String
+  gender        String?
+  age           Int?
   creditBalance Float          @default(500)
   role          String         @default("user")
   createdAt     DateTime       @default(now())
@@ -92,6 +94,8 @@ model OtpVerification {
   phone     String
   username  String
   password  String
+  gender    String?
+  age       Int?
   otp       String
   expiresAt DateTime
   createdAt DateTime @default(now())
