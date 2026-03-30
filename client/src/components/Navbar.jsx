@@ -27,6 +27,9 @@ export default function Navbar() {
               <Link to="/trips" className="text-teal-100 hover:text-white px-2 sm:px-3 py-2 rounded text-sm font-medium transition-colors">
                 Browse
               </Link>
+              <Link to="/communities" className="text-teal-100 hover:text-white px-2 sm:px-3 py-2 rounded text-sm font-medium transition-colors">
+                Communities
+              </Link>
               <Link to="/trips/create" className="text-teal-100 hover:text-white px-2 sm:px-3 py-2 rounded text-sm font-medium transition-colors">
                 Create Trip
               </Link>

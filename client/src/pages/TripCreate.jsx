@@ -1,14 +1,19 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import LocationPicker from '../components/LocationPicker';
 
 export default function TripCreate() {
   const { api } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState('simple'); // 'simple' | 'map'
+
+  // Community selector
+  const [communities, setCommunities] = useState([]);
+  const [selectedCommunity, setSelectedCommunity] = useState(searchParams.get('communityId') || '');
 
   // Simple mode fields
   const [originName, setOriginName] = useState('');
@@ -22,6 +27,12 @@ export default function TripCreate() {
   // Shared fields
   const [departureTime, setDepartureTime] = useState('');
   const [totalSeats, setTotalSeats] = useState('');
+
+  useEffect(() => {
+    api.get('/communities').then(res => {
+      setCommunities(res.data.communities || []);
+    }).catch(() => {});
+  }, [api]);
 
   // Auto-calculated distance & credits for map mode
   const calcDistance = () => {
@@ -79,6 +90,10 @@ export default function TripCreate() {
         payload.destLng = destination.lng;
       }
 
+      if (selectedCommunity) {
+        payload.communityId = selectedCommunity;
+      }
+
       await api.post('/trips', payload);
       navigate('/my-trips');
     } catch (err) {
@@ -111,6 +126,24 @@ export default function TripCreate() {
             🗺️ Map Picker
           </button>
         </div>
+
+        {/* Community Selector */}
+        {communities.length > 0 && (
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">👥 Community (optional)</label>
+            <select
+              value={selectedCommunity}
+              onChange={(e) => setSelectedCommunity(e.target.value)}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none bg-white"
+            >
+              <option value="">Public / No Community</option>
+              {communities.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">Post this trip to a community so only members can see it</p>
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm">{error}</div>

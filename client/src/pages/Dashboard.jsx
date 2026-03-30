@@ -7,14 +7,16 @@ export default function Dashboard() {
   const { user, api } = useAuth();
   const [balance, setBalance] = useState(null);
   const [recentTrips, setRecentTrips] = useState([]);
+  const [communities, setCommunities] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [balRes, tripsRes] = await Promise.allSettled([
+        const [balRes, tripsRes, commRes] = await Promise.allSettled([
           api.get('/credits/balance'),
           api.get('/trips'),
+          api.get('/communities'),
         ]);
         if (balRes.status === 'fulfilled') {
           setBalance(balRes.value.data.balance ?? balRes.value.data.credits ?? 0);
@@ -22,6 +24,9 @@ export default function Dashboard() {
         if (tripsRes.status === 'fulfilled') {
           const trips = tripsRes.value.data.trips || tripsRes.value.data || [];
           setRecentTrips(trips.slice(0, 3));
+        }
+        if (commRes.status === 'fulfilled') {
+          setCommunities(commRes.value.data.communities || []);
         }
       } catch {
         // silently fail
@@ -88,6 +93,35 @@ export default function Dashboard() {
           <p className="text-sm text-gray-500 mt-1">Manage your rides</p>
         </Link>
       </div>
+
+      {/* My Communities */}
+      {communities.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-900">My Communities</h2>
+            <Link to="/communities" className="text-teal-600 hover:text-teal-700 text-sm font-medium">
+              View all →
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {communities.slice(0, 3).map(c => (
+              <Link
+                key={c.id}
+                to={`/communities/${c.id}`}
+                className="block bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow border border-gray-100 p-4"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="font-bold text-gray-900">{c.name}</h3>
+                  {c.myRole === 'admin' && (
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800">Admin</span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-500">👥 {c.memberCount} members</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Recent Trips */}
       <div>

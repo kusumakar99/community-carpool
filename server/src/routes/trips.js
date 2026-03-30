@@ -8,10 +8,20 @@ const router = express.Router();
 // POST /api/trips — Create a new trip (driver)
 router.post('/', auth, async (req, res) => {
   try {
-    const { originName, originLat, originLng, destName, destLat, destLng, departureTime, totalSeats, creditsPerSeat: manualCredits } = req.body;
+    const { originName, originLat, originLng, destName, destLat, destLng, departureTime, totalSeats, creditsPerSeat: manualCredits, communityId } = req.body;
 
     if (!originName || !destName || !departureTime || !totalSeats) {
       return res.status(400).json({ error: 'Origin, destination, departure time, and seats are required.' });
+    }
+
+    // If communityId provided, verify user is a member
+    if (communityId) {
+      const membership = await prisma.communityMember.findUnique({
+        where: { communityId_userId: { communityId, userId: req.user.id } },
+      });
+      if (!membership) {
+        return res.status(403).json({ error: 'You are not a member of this community.' });
+      }
     }
 
     // Calculate credits: use manual override, or calculate from coordinates, or require manual
@@ -37,6 +47,7 @@ router.post('/', auth, async (req, res) => {
         totalSeats: parseInt(totalSeats, 10),
         availableSeats: parseInt(totalSeats, 10),
         creditsPerSeat,
+        communityId: communityId || null,
       },
       include: { driver: { select: { id: true, username: true, email: true } } },
     });
@@ -55,7 +66,7 @@ router.get('/my/created', auth, async (req, res) => {
       where: { driverId: req.user.id },
       include: {
         driver: { select: { id: true, username: true } },
-        joinRequests: { include: { rider: { select: { id: true, username: true } } } },
+        joinRequests: { include: { rider: { select: { id: true, username: true, gender: true, age: true } } } },
       },
       orderBy: { departureTime: 'desc' },
     });
@@ -73,11 +84,21 @@ router.get('/my/joined', auth, async (req, res) => {
       where: { riderId: req.user.id },
       include: {
         trip: {
-          include: { driver: { select: { id: true, username: true } } },
+          include: { driver: { select: { id: true, username: true, phone: true, gender: true, age: true } } },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    // Strip driver details for non-ACCEPTED join requests
+    for (const jr of joinRequests) {
+      if (jr.status !== 'ACCEPTED' && jr.trip?.driver) {
+        delete jr.trip.driver.phone;
+        delete jr.trip.driver.gender;
+        delete jr.trip.driver.age;
+      }
+    }
+
     return res.json({ joinRequests });
   } catch (err) {
     console.error('My joined trips error:', err);
@@ -88,7 +109,7 @@ router.get('/my/joined', auth, async (req, res) => {
 // GET /api/trips — List available trips (not own, with available seats, scheduled)
 router.get('/', auth, async (req, res) => {
   try {
-    const { search } = req.query;
+    const { search, communityId } = req.query;
     const where = {
       status: 'SCHEDULED',
       availableSeats: { gt: 0 },
@@ -96,16 +117,40 @@ router.get('/', auth, async (req, res) => {
       departureTime: { gte: new Date() },
     };
 
-    if (search) {
+    if (communityId) {
+      // Verify user is a member
+      const membership = await prisma.communityMember.findUnique({
+        where: { communityId_userId: { communityId, userId: req.user.id } },
+      });
+      if (!membership) {
+        return res.status(403).json({ error: 'You are not a member of this community.' });
+      }
+      where.communityId = communityId;
+    } else {
+      // Show public trips (no community) + trips from user's communities
+      const memberships = await prisma.communityMember.findMany({
+        where: { userId: req.user.id },
+        select: { communityId: true },
+      });
+      const myCommunityIds = memberships.map(m => m.communityId);
       where.OR = [
-        { originName: { contains: search } },
-        { destName: { contains: search } },
+        { communityId: null },
+        ...(myCommunityIds.length > 0 ? [{ communityId: { in: myCommunityIds } }] : []),
+      ];
+    }
+
+    if (search) {
+      where.AND = [
+        { OR: [
+          { originName: { contains: search } },
+          { destName: { contains: search } },
+        ] },
       ];
     }
 
     const trips = await prisma.trip.findMany({
       where,
-      include: { driver: { select: { id: true, username: true } } },
+      include: { driver: { select: { id: true, username: true, gender: true, age: true } } },
       orderBy: { departureTime: 'asc' },
     });
 
@@ -122,9 +167,9 @@ router.get('/:id', auth, async (req, res) => {
     const trip = await prisma.trip.findUnique({
       where: { id: req.params.id },
       include: {
-        driver: { select: { id: true, username: true, email: true, phone: true } },
+        driver: { select: { id: true, username: true, email: true, phone: true, gender: true, age: true } },
         joinRequests: {
-          include: { rider: { select: { id: true, username: true, phone: true } } },
+          include: { rider: { select: { id: true, username: true, phone: true, gender: true, age: true } } },
         },
       },
     });
@@ -137,14 +182,25 @@ router.get('/:id', auth, async (req, res) => {
     const myRequest = trip.joinRequests.find(jr => jr.riderId === req.user.id);
     const isAcceptedRider = myRequest && myRequest.status === 'ACCEPTED';
 
-    // Only show driver phone to accepted riders when journey is active
-    if (!isDriver && !(isAcceptedRider && (trip.status === 'IN_PROGRESS' || trip.status === 'COMPLETED'))) {
-      delete trip.driver.phone;
+    // For non-drivers: show driver phone if ACCEPTED (any active status), hide email always
+    if (!isDriver) {
+      delete trip.driver.email;
+      const showPhone = isAcceptedRider && (trip.status === 'SCHEDULED' || trip.status === 'IN_PROGRESS');
+      if (!showPhone) {
+        delete trip.driver.phone;
+      }
     }
 
-    // Only show rider phones to the driver
+    // Only show rider phones to the driver, and only for accepted riders
     if (!isDriver) {
       trip.joinRequests.forEach(jr => { delete jr.rider.phone; });
+    } else {
+      // For driver: strip phone from non-accepted riders
+      trip.joinRequests.forEach(jr => {
+        if (jr.status !== 'ACCEPTED') {
+          if (jr.rider) delete jr.rider.phone;
+        }
+      });
     }
 
     // Non-drivers only see their own join request

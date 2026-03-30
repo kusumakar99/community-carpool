@@ -5,7 +5,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url = env("DATABASE_URL")
 }
 
 model User {
@@ -24,6 +24,8 @@ model User {
   sentTx        Transaction[]  @relation("SentTransactions")
   receivedTx    Transaction[]  @relation("ReceivedTransactions")
   announcements Announcement[] @relation("SentAnnouncements")
+  communities        CommunityMember[] @relation("CommunityMemberships")
+  createdCommunities Community[]       @relation("CreatedCommunities")
 }
 
 enum TripStatus {
@@ -51,6 +53,8 @@ model Trip {
   createdAt      DateTime      @default(now())
   joinRequests   JoinRequest[]
   transactions   Transaction[]
+  communityId    String?
+  community      Community?    @relation("CommunityTrips", fields: [communityId], references: [id])
 }
 
 enum RequestStatus {
@@ -114,4 +118,29 @@ model Transaction {
   amount     Float
   type       TransactionType
   createdAt  DateTime        @default(now())
+}
+
+model Community {
+  id          String            @id @default(uuid())
+  name        String
+  description String?
+  inviteCode  String            @unique
+  createdBy   String
+  creator     User              @relation("CreatedCommunities", fields: [createdBy], references: [id])
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  members     CommunityMember[]
+  trips       Trip[]            @relation("CommunityTrips")
+}
+
+model CommunityMember {
+  id          String    @id @default(uuid())
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id])
+  userId      String
+  user        User      @relation("CommunityMemberships", fields: [userId], references: [id])
+  role        String    @default("member")
+  joinedAt    DateTime  @default(now())
+
+  @@unique([communityId, userId])
 }

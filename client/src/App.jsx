@@ -12,6 +12,9 @@ import TripDetail from './pages/TripDetail';
 import MyTrips from './pages/MyTrips';
 import Transactions from './pages/Transactions';
 import AdminPanel from './pages/AdminPanel';
+import JoinCommunity from './pages/JoinCommunity';
+import Communities from './pages/Communities';
+import CommunityDetail from './pages/CommunityDetail';
 
 function App() {
   return (
@@ -22,12 +25,15 @@ function App() {
           <Routes>
             <Route path="/register" element={<Register />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/join/:inviteCode" element={<JoinCommunity />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/trips" element={<ProtectedRoute><TripList /></ProtectedRoute>} />
             <Route path="/trips/create" element={<ProtectedRoute><TripCreate /></ProtectedRoute>} />
             <Route path="/trips/:id" element={<ProtectedRoute><TripDetail /></ProtectedRoute>} />
             <Route path="/my-trips" element={<ProtectedRoute><MyTrips /></ProtectedRoute>} />
             <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
+            <Route path="/communities" element={<ProtectedRoute><Communities /></ProtectedRoute>} />
+            <Route path="/communities/:id" element={<ProtectedRoute><CommunityDetail /></ProtectedRoute>} />
             <Route path="/admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

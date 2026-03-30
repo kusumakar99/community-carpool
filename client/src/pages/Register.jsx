@@ -9,7 +9,7 @@ export default function Register() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
-  const { register, verifyOtp, resendOtp } = useAuth();
+  const { register, verifyOtp, resendOtp, api } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
@@ -62,6 +62,16 @@ export default function Register() {
     setLoading(true);
     try {
       await verifyOtp(form.email, otp);
+      // Auto-join community if there's a pending invite code
+      const pendingCode = localStorage.getItem('pendingInviteCode');
+      if (pendingCode) {
+        try {
+          await api.post('/communities/join', { inviteCode: pendingCode });
+        } catch {
+          // ignore join errors — user can join later
+        }
+        localStorage.removeItem('pendingInviteCode');
+      }
       navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.error || 'OTP verification failed.');
