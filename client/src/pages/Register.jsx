@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 
 export default function Register() {
   const [step, setStep] = useState('form'); // 'form' | 'otp'
-  const [form, setForm] = useState({ email: '', username: '', password: '', confirmPassword: '' });
+  const [form, setForm] = useState({ email: '', phone: '', username: '', password: '', confirmPassword: '' });
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -19,8 +19,11 @@ export default function Register() {
     setError('');
     setSuccess('');
 
-    if (!form.email || !form.username || !form.password || !form.confirmPassword) {
+    if (!form.email || !form.phone || !form.username || !form.password || !form.confirmPassword) {
       return setError('All fields are required.');
+    }
+    if (!/^[+\d][\d\s\-()]{9,}$/.test(form.phone.trim())) {
+      return setError('Please enter a valid phone number (10+ digits).');
     }
     if (!/\S+@\S+\.\S+/.test(form.email)) {
       return setError('Please enter a valid email address.');
@@ -34,7 +37,7 @@ export default function Register() {
 
     setLoading(true);
     try {
-      const data = await register(form.email, form.username, form.password);
+      const data = await register(form.email, form.phone, form.username, form.password);
       setSuccess(data.message || 'OTP sent to your email!');
       setStep('otp');
     } catch (err) {
@@ -90,7 +93,7 @@ export default function Register() {
             <p className="text-gray-500 mt-1">
               {step === 'form'
                 ? 'Join the community carpool'
-                : `Enter the 6-digit code sent to ${form.email}`}
+                : `Enter the 6-digit code sent to your email and phone`}
             </p>
           </div>
 
@@ -113,6 +116,14 @@ export default function Register() {
                   type="email" name="email" value={form.email} onChange={handleChange}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all"
                   placeholder="you@example.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone Number</label>
+                <input
+                  type="tel" name="phone" value={form.phone} onChange={handleChange}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none transition-all"
+                  placeholder="+91 9876543210"
                 />
               </div>
               <div>

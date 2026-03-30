@@ -1,15 +1,17 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
   id            String         @id @default(uuid())
   email         String         @unique
+  phone         String         @unique
   username      String         @unique
   password      String
   creditBalance Float          @default(500)
@@ -87,6 +89,7 @@ model Announcement {
 model OtpVerification {
   id        String   @id @default(uuid())
   email     String
+  phone     String
   username  String
   password  String
   otp       String

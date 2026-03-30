@@ -3,7 +3,8 @@ import axios from 'axios';
 
 const AuthContext = createContext(null);
 
-const api = axios.create({ baseURL: '/api' });
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+const api = axios.create({ baseURL: API_BASE });
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -43,8 +44,8 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  const register = async (email, username, password) => {
-    const res = await api.post('/auth/register', { email, username, password });
+  const register = async (email, phone, username, password) => {
+    const res = await api.post('/auth/register', { email, phone, username, password });
     return res.data; // Returns { message, previewUrl } — no token yet
   };
 

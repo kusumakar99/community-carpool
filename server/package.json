@@ -2,19 +2,21 @@
   "name": "community-carpool-server",
   "version": "1.0.0",
   "description": "Community CarPool Tool — backend server",
-  "main": "index.js",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
+    "postinstall": "npx prisma generate",
     "test": "jest --forceExit --detectOpenHandles"
   },
   "keywords": [],
   "author": "Kusumakar Althi",
   "license": "ISC",
-  "directories": {
-    "test": "tests"
-  },
   "dependencies": {
+    "@azure/communication-sms": "^1.2.0-beta.4",
     "@prisma/client": "^6.19.2",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
@@ -23,8 +25,5 @@
     "jsonwebtoken": "^9.0.3",
     "nodemailer": "^8.0.4",
     "prisma": "^6.19.2"
-  },
-  "devDependencies": {
-    "jest": "^30.3.0"
   }
 }
