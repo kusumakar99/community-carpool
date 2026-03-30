@@ -122,9 +122,9 @@ router.get('/:id', auth, async (req, res) => {
     const trip = await prisma.trip.findUnique({
       where: { id: req.params.id },
       include: {
-        driver: { select: { id: true, username: true, email: true } },
+        driver: { select: { id: true, username: true, email: true, phone: true } },
         joinRequests: {
-          include: { rider: { select: { id: true, username: true } } },
+          include: { rider: { select: { id: true, username: true, phone: true } } },
         },
       },
     });
@@ -133,15 +133,52 @@ router.get('/:id', auth, async (req, res) => {
       return res.status(404).json({ error: 'Trip not found.' });
     }
 
-    // Only show join requests to the driver
-    if (trip.driverId !== req.user.id) {
-      const myRequest = trip.joinRequests.filter((jr) => jr.riderId === req.user.id);
-      trip.joinRequests = myRequest;
+    const isDriver = trip.driverId === req.user.id;
+    const myRequest = trip.joinRequests.find(jr => jr.riderId === req.user.id);
+    const isAcceptedRider = myRequest && myRequest.status === 'ACCEPTED';
+
+    // Only show driver phone to accepted riders when journey is active
+    if (!isDriver && !(isAcceptedRider && (trip.status === 'IN_PROGRESS' || trip.status === 'COMPLETED'))) {
+      delete trip.driver.phone;
+    }
+
+    // Only show rider phones to the driver
+    if (!isDriver) {
+      trip.joinRequests.forEach(jr => { delete jr.rider.phone; });
+    }
+
+    // Non-drivers only see their own join request
+    if (!isDriver) {
+      trip.joinRequests = trip.joinRequests.filter(jr => jr.riderId === req.user.id);
     }
 
     return res.json({ trip });
   } catch (err) {
     console.error('Get trip error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+// PATCH /api/trips/:id/start — Start journey (driver only)
+router.patch('/:id/start', auth, async (req, res) => {
+  try {
+    const trip = await prisma.trip.findUnique({ where: { id: req.params.id } });
+    if (!trip) return res.status(404).json({ error: 'Trip not found.' });
+    if (trip.driverId !== req.user.id) return res.status(403).json({ error: 'Only the driver can start this trip.' });
+    if (trip.status !== 'SCHEDULED') return res.status(400).json({ error: `Cannot start a trip with status ${trip.status}.` });
+
+    const updatedTrip = await prisma.trip.update({
+      where: { id: trip.id },
+      data: { status: 'IN_PROGRESS' },
+      include: {
+        driver: { select: { id: true, username: true, phone: true } },
+        joinRequests: { include: { rider: { select: { id: true, username: true } } } },
+      },
+    });
+
+    return res.json({ trip: updatedTrip, message: 'Journey started!' });
+  } catch (err) {
+    console.error('Start trip error:', err);
     return res.status(500).json({ error: 'Internal server error.' });
   }
 });

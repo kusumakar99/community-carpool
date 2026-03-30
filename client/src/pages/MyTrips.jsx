@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import TripCard from '../components/TripCard';
@@ -9,33 +9,56 @@ export default function MyTrips() {
   const [drivingTrips, setDrivingTrips] = useState([]);
   const [ridingTrips, setRidingTrips] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState('');
+  const [actionLoading, setActionLoading] = useState('');
 
-  useEffect(() => {
-    const fetchTrips = async () => {
-      try {
-        const [createdRes, joinedRes] = await Promise.allSettled([
-          api.get('/trips/my/created'),
-          api.get('/trips/my/joined'),
-        ]);
-        if (createdRes.status === 'fulfilled') {
-          setDrivingTrips(createdRes.value.data.trips || createdRes.value.data || []);
-        }
-        if (joinedRes.status === 'fulfilled') {
-          setRidingTrips(joinedRes.value.data.trips || joinedRes.value.data || []);
-        }
-      } catch {
-        // silently fail
-      } finally {
-        setLoading(false);
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+
+  const fetchTrips = useCallback(async () => {
+    try {
+      const [createdRes, joinedRes] = await Promise.allSettled([
+        api.get('/trips/my/created'),
+        api.get('/trips/my/joined'),
+      ]);
+      if (createdRes.status === 'fulfilled') {
+        setDrivingTrips(createdRes.value.data.trips || createdRes.value.data || []);
       }
-    };
-    fetchTrips();
+      if (joinedRes.status === 'fulfilled') {
+        setRidingTrips(joinedRes.value.data.trips || joinedRes.value.data || []);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setLoading(false);
+    }
   }, [api]);
+
+  useEffect(() => { fetchTrips(); }, [fetchTrips]);
+
+  const handleStartJourney = async (tripId) => {
+    setActionLoading(tripId);
+    try {
+      await api.patch(`/trips/${tripId}/start`);
+      showToast('Journey started!');
+      fetchTrips();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to start journey.');
+    } finally {
+      setActionLoading('');
+    }
+  };
 
   const currentTrips = tab === 'driving' ? drivingTrips : ridingTrips;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-20 right-4 bg-teal-700 text-white px-5 py-3 rounded-lg shadow-lg z-50 animate-fade-in">
+          {toast}
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">My Trips</h1>
@@ -75,9 +98,25 @@ export default function MyTrips() {
         </div>
       ) : currentTrips.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {currentTrips.map(trip => (
-            <TripCard key={trip._id || trip.id} trip={trip} />
-          ))}
+          {currentTrips.map(trip => {
+            const tripId = trip._id || trip.id;
+            const tripStatus = (trip.status || '').toUpperCase();
+            const hasAcceptedRiders = tab === 'driving' && (trip.joinRequests || []).some(r => (r.status || '').toUpperCase() === 'ACCEPTED');
+            return (
+              <div key={tripId}>
+                <TripCard trip={trip} />
+                {tab === 'driving' && tripStatus === 'SCHEDULED' && hasAcceptedRiders && (
+                  <button
+                    onClick={(e) => { e.preventDefault(); handleStartJourney(tripId); }}
+                    disabled={actionLoading === tripId}
+                    className="w-full mt-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    {actionLoading === tripId ? 'Starting...' : '🚀 Start Journey'}
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="bg-white rounded-xl shadow p-12 text-center border border-gray-100">

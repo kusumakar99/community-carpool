@@ -29,8 +29,9 @@ export default function TripDetail() {
 
   const joinRequests = trip?.joinRequests || trip?.join_requests || [];
   const myRequest = joinRequests.find(r =>
-    (r.user?._id || r.user?.id || r.user) === (user?._id || user?.id)
+    (r.rider?.id || r.riderId || r.user?._id || r.user?.id || r.user) === (user?._id || user?.id)
   );
+  const isAcceptedRider = myRequest && (myRequest.status === 'ACCEPTED' || myRequest.status === 'accepted');
   const seatsAvailable = trip?.availableSeats ?? trip?.available_seats ?? trip?.totalSeats ?? trip?.total_seats ?? 0;
 
   const handleJoin = async () => {
@@ -59,7 +60,17 @@ export default function TripDetail() {
       await api.patch(`/trips/${id}/${action}`);
       showToast(`Trip ${action}d!`);
       fetchTrip();
-    } catch (err) { showToast(err.response?.data?.message || `Failed to ${action} trip.`); }
+    } catch (err) { showToast(err.response?.data?.message || err.response?.data?.error || `Failed to ${action} trip.`); }
+    finally { setActionLoading(''); }
+  };
+
+  const handleStartJourney = async () => {
+    setActionLoading('start');
+    try {
+      await api.patch(`/trips/${id}/start`);
+      showToast('Journey started!');
+      fetchTrip();
+    } catch (err) { showToast(err.response?.data?.error || 'Failed to start journey.'); }
     finally { setActionLoading(''); }
   };
 
@@ -77,11 +88,11 @@ export default function TripDetail() {
 
   if (!trip) return null;
 
-  const status = trip.status || 'scheduled';
+  const status = (trip.status || 'scheduled').toLowerCase();
   const statusColors = {
     scheduled: 'bg-blue-100 text-blue-800',
-    'in-progress': 'bg-yellow-100 text-yellow-800',
-    in_progress: 'bg-yellow-100 text-yellow-800',
+    'in-progress': 'bg-amber-100 text-amber-800 animate-pulse',
+    in_progress: 'bg-amber-100 text-amber-800 animate-pulse',
     completed: 'bg-green-100 text-green-800',
     cancelled: 'bg-red-100 text-red-800',
   };
@@ -164,11 +175,43 @@ export default function TripDetail() {
             </div>
           )}
 
+          {/* Rider: Journey In Progress — Call Driver */}
+          {!isDriver && isAcceptedRider && status === 'in_progress' && trip.driver?.phone && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <h3 className="font-semibold text-amber-800 mb-2">🚗 Journey In Progress</h3>
+              <p className="text-sm text-gray-600 mb-3">Contact your driver:</p>
+              <a href={`tel:${trip.driver.phone}`}
+                 className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                📞 Call {trip.driver.username} ({trip.driver.phone})
+              </a>
+            </div>
+          )}
+
           {/* Driver Actions */}
           {isDriver && (
             <div className="space-y-4">
-              {/* Trip Actions */}
+              {/* Trip Actions — Scheduled */}
               {status === 'scheduled' && (
+                <div className="flex gap-3">
+                  {joinRequests.some(r => (r.status || '').toUpperCase() === 'ACCEPTED') && (
+                    <button onClick={handleStartJourney} disabled={!!actionLoading}
+                      className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 cursor-pointer">
+                      {actionLoading === 'start' ? 'Starting...' : '🚀 Start Journey'}
+                    </button>
+                  )}
+                  <button onClick={() => handleTripAction('complete')} disabled={!!actionLoading}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 cursor-pointer">
+                    {actionLoading === 'complete' ? 'Completing...' : '✅ Complete Trip'}
+                  </button>
+                  <button onClick={() => handleTripAction('cancel')} disabled={!!actionLoading}
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 cursor-pointer">
+                    {actionLoading === 'cancel' ? 'Cancelling...' : '❌ Cancel Trip'}
+                  </button>
+                </div>
+              )}
+
+              {/* Trip Actions — In Progress */}
+              {status === 'in_progress' && (
                 <div className="flex gap-3">
                   <button onClick={() => handleTripAction('complete')} disabled={!!actionLoading}
                     className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 cursor-pointer">
@@ -181,6 +224,24 @@ export default function TripDetail() {
                 </div>
               )}
 
+              {/* Driver: In Progress — Passengers with phones */}
+              {status === 'in_progress' && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                  <h3 className="font-semibold text-amber-800 mb-2">🚗 Journey In Progress — Passengers</h3>
+                  {joinRequests.filter(jr => (jr.status || '').toUpperCase() === 'ACCEPTED').map(jr => (
+                    <div key={jr._id || jr.id} className="flex items-center justify-between py-2 border-b border-amber-100 last:border-0">
+                      <span className="font-medium text-gray-900">{jr.rider?.username || jr.user?.username || 'Rider'}</span>
+                      {(jr.rider?.phone || jr.user?.phone) && (
+                        <a href={`tel:${jr.rider?.phone || jr.user?.phone}`}
+                           className="inline-flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">
+                          📞 {jr.rider?.phone || jr.user?.phone}
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Join Requests */}
               <div>
                 <h3 className="text-lg font-bold text-gray-900 mb-3">Join Requests ({joinRequests.length})</h3>
@@ -188,14 +249,14 @@ export default function TripDetail() {
                   <div className="space-y-3">
                     {joinRequests.map((req) => {
                       const reqId = req._id || req.id;
-                      const reqUser = req.user?.username || req.user?.email || 'User';
+                      const reqUser = req.rider?.username || req.user?.username || req.user?.email || 'User';
                       return (
                         <div key={reqId} className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
                           <div>
                             <p className="font-medium text-gray-900">{reqUser}</p>
                             <p className="text-sm text-gray-500">Status: <span className="font-semibold capitalize">{req.status}</span></p>
                           </div>
-                          {req.status === 'pending' && (
+                          {(req.status === 'pending' || req.status === 'PENDING') && (
                             <div className="flex gap-2">
                               <button onClick={() => handleRequestAction(reqId, 'accept')} disabled={!!actionLoading}
                                 className="bg-green-500 hover:bg-green-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 cursor-pointer">
