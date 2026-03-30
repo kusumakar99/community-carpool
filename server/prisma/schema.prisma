@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model User {
@@ -12,12 +12,14 @@ model User {
   email         String         @unique
   username      String         @unique
   password      String
-  creditBalance Float          @default(100)
+  creditBalance Float          @default(500)
+  role          String         @default("user")
   createdAt     DateTime       @default(now())
   trips         Trip[]         @relation("DriverTrips")
   joinRequests  JoinRequest[]  @relation("RiderRequests")
   sentTx        Transaction[]  @relation("SentTransactions")
   receivedTx    Transaction[]  @relation("ReceivedTransactions")
+  announcements Announcement[] @relation("SentAnnouncements")
 }
 
 enum TripStatus {
@@ -69,6 +71,29 @@ model JoinRequest {
 enum TransactionType {
   TRIP_PAYMENT
   REFUND
+}
+
+model Announcement {
+  id        String   @id @default(uuid())
+  subject   String
+  body      String
+  sentBy    String
+  sender    User     @relation("SentAnnouncements", fields: [sentBy], references: [id])
+  audience  String   @default("all") // "all" or comma-separated user IDs
+  userCount Int
+  createdAt DateTime @default(now())
+}
+
+model OtpVerification {
+  id        String   @id @default(uuid())
+  email     String
+  username  String
+  password  String
+  otp       String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([email])
 }
 
 model Transaction {

@@ -45,12 +45,22 @@ export function AuthProvider({ children }) {
 
   const register = async (email, username, password) => {
     const res = await api.post('/auth/register', { email, username, password });
+    return res.data; // Returns { message, previewUrl } — no token yet
+  };
+
+  const verifyOtp = async (email, otp) => {
+    const res = await api.post('/auth/verify-otp', { email, otp });
     const data = res.data;
     localStorage.setItem('token', data.token);
     setToken(data.token);
     api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
     setUser(data.user);
     return data;
+  };
+
+  const resendOtp = async (email) => {
+    const res = await api.post('/auth/resend-otp', { email });
+    return res.data;
   };
 
   const logout = () => {
@@ -61,7 +71,7 @@ export function AuthProvider({ children }) {
   };
 
   const value = useMemo(() => ({
-    user, token, loading, login, register, logout, api
+    user, token, loading, login, register, verifyOtp, resendOtp, logout, api
   }), [user, token, loading]);
 
   return (

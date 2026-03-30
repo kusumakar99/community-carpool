@@ -7,6 +7,7 @@ const authRoutes = require('./routes/auth');
 const tripRoutes = require('./routes/trips');
 const joinRequestRoutes = require('./routes/joinRequests');
 const creditRoutes = require('./routes/credits');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api', joinRequestRoutes);
 app.use('/api/credits', creditRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 404 handler
 app.use((_req, res) => {

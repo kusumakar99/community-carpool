@@ -102,7 +102,7 @@ export default function TripDetail() {
             <span className={`text-xs font-semibold px-3 py-1 rounded-full ${statusColors[status] || 'bg-gray-100 text-gray-800'}`}>
               {status.replace(/[_-]/g, ' ').toUpperCase()}
             </span>
-            <span className="text-2xl font-bold">{trip.creditsPerSeat ?? trip.credits_per_seat ?? 0} credits/seat</span>
+            <span className="text-2xl font-bold">₹{trip.creditsPerSeat ?? trip.credits_per_seat ?? 0}/seat</span>
           </div>
           <div className="flex items-center space-x-4">
             <div className="flex flex-col items-center">

@@ -24,7 +24,7 @@ export default function TripCard({ trip }) {
           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusColors[status] || 'bg-gray-100 text-gray-800'}`}>
             {status.replace(/[_-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
           </span>
-          <span className="text-teal-700 font-bold text-lg">{creditsPerSeat} cr</span>
+          <span className="text-teal-700 font-bold text-lg">₹{creditsPerSeat}</span>
         </div>
 
         <div className="flex items-center space-x-3 mb-4">

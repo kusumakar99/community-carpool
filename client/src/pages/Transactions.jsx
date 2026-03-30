@@ -32,15 +32,15 @@ export default function Transactions() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Credit Transactions</h1>
-        <p className="text-gray-500 mt-1">Your credit activity history</p>
+        <h1 className="text-3xl font-bold text-gray-900">Transactions (₹)</h1>
+        <p className="text-gray-500 mt-1">Your transaction history</p>
       </div>
 
       {/* Balance */}
       <div className="bg-gradient-to-r from-teal-600 to-teal-700 rounded-2xl shadow-lg p-6 mb-8 text-white">
         <p className="text-teal-100 text-sm font-medium">Current Balance</p>
         <p className="text-4xl font-bold mt-1">
-          {loading ? '...' : (balance ?? 0)} <span className="text-xl text-teal-200">credits</span>
+          ₹{loading ? '...' : (balance ?? 0)}
         </p>
       </div>
 
@@ -82,7 +82,7 @@ export default function Transactions() {
                       )}
                     </td>
                     <td className={`px-6 py-4 text-right font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                      {isPositive ? '+' : ''}{amount} cr
+                      {isPositive ? '+' : ''}₹{Math.abs(amount)}
                     </td>
                   </tr>
                 );
@@ -94,7 +94,7 @@ export default function Transactions() {
         <div className="bg-white rounded-xl shadow p-12 text-center border border-gray-100">
           <span className="text-5xl block mb-4">📊</span>
           <p className="text-gray-500 text-lg">No transactions yet.</p>
-          <p className="text-gray-400 text-sm mt-1">Complete trips to earn and spend credits.</p>
+          <p className="text-gray-400 text-sm mt-1">Complete trips to earn and spend ₹.</p>
         </div>
       )}
     </div>

@@ -34,8 +34,13 @@ export default function Navbar() {
                 My Trips
               </Link>
               <Link to="/transactions" className="text-teal-100 hover:text-white px-2 sm:px-3 py-2 rounded text-sm font-medium transition-colors">
-                Credits
+                ₹ Wallet
               </Link>
+              {user.role === 'admin' && (
+                <Link to="/admin" className="text-yellow-200 hover:text-white px-2 sm:px-3 py-2 rounded text-sm font-medium transition-colors">
+                  🛡️ Admin
+                </Link>
+              )}
               <div className="flex items-center space-x-3 ml-2 pl-2 sm:pl-4 border-l border-teal-500">
                 <span className="text-teal-100 text-sm hidden sm:inline">
                   {user.username}

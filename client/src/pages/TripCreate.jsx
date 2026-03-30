@@ -1,63 +1,88 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import LocationPicker from '../components/LocationPicker';
 
 export default function TripCreate() {
   const { api } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({
-    originName: '',
-    originLat: '',
-    originLng: '',
-    destinationName: '',
-    destinationLat: '',
-    destinationLng: '',
-    departureTime: '',
-    totalSeats: '',
-  });
+  const [mode, setMode] = useState('simple'); // 'simple' | 'map'
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  // Simple mode fields
+  const [originName, setOriginName] = useState('');
+  const [destName, setDestName] = useState('');
+  const [creditsPerSeat, setCreditsPerSeat] = useState('');
 
-  // Haversine distance in km
+  // Map mode fields
+  const [origin, setOrigin] = useState({ name: '', lat: null, lng: null });
+  const [destination, setDestination] = useState({ name: '', lat: null, lng: null });
+
+  // Shared fields
+  const [departureTime, setDepartureTime] = useState('');
+  const [totalSeats, setTotalSeats] = useState('');
+
+  // Auto-calculated distance & credits for map mode
   const calcDistance = () => {
-    const lat1 = parseFloat(form.originLat);
-    const lng1 = parseFloat(form.originLng);
-    const lat2 = parseFloat(form.destinationLat);
-    const lng2 = parseFloat(form.destinationLng);
-    if ([lat1, lng1, lat2, lng2].some(isNaN)) return null;
+    if (!origin.lat || !origin.lng || !destination.lat || !destination.lng) return null;
     const R = 6371;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLng = ((lng2 - lng1) * Math.PI) / 180;
-    const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+    const dLat = ((destination.lat - origin.lat) * Math.PI) / 180;
+    const dLng = ((destination.lng - origin.lng) * Math.PI) / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos((origin.lat * Math.PI) / 180) * Math.cos((destination.lat * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   };
-
   const distance = calcDistance();
-  const creditsPerSeat = distance ? Math.round(distance * 0.5) : null;
+  const autoCredits = distance ? Math.round(distance * 2) : null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    if (!form.originName || !form.destinationName || !form.departureTime || !form.totalSeats) {
-      return setError('Please fill in all required fields.');
+    if (mode === 'simple') {
+      if (!originName.trim() || !destName.trim()) {
+        return setError('Please enter origin and destination.');
+      }
+      if (!creditsPerSeat || parseFloat(creditsPerSeat) <= 0) {
+        return setError('Please enter price per seat (must be > 0).');
+      }
+    } else {
+      if (!origin.name || !origin.lat) {
+        return setError('Please select an origin location on the map.');
+      }
+      if (!destination.name || !destination.lat) {
+        return setError('Please select a destination location on the map.');
+      }
     }
+    if (!departureTime) return setError('Please set a departure date & time.');
+    if (!totalSeats || parseInt(totalSeats) < 1) return setError('Please enter the number of seats.');
 
     setLoading(true);
     try {
-      await api.post('/trips', {
-        originName: form.originName,
-        originCoordinates: { lat: parseFloat(form.originLat) || 0, lng: parseFloat(form.originLng) || 0 },
-        destinationName: form.destinationName,
-        destinationCoordinates: { lat: parseFloat(form.destinationLat) || 0, lng: parseFloat(form.destinationLng) || 0 },
-        departureTime: new Date(form.departureTime).toISOString(),
-        totalSeats: parseInt(form.totalSeats),
-      });
+      const payload = {
+        departureTime: new Date(departureTime).toISOString(),
+        totalSeats: parseInt(totalSeats),
+      };
+
+      if (mode === 'simple') {
+        payload.originName = originName.trim();
+        payload.destName = destName.trim();
+        payload.creditsPerSeat = parseFloat(creditsPerSeat);
+      } else {
+        payload.originName = origin.name;
+        payload.originLat = origin.lat;
+        payload.originLng = origin.lng;
+        payload.destName = destination.name;
+        payload.destLat = destination.lat;
+        payload.destLng = destination.lng;
+      }
+
+      await api.post('/trips', payload);
       navigate('/my-trips');
     } catch (err) {
-      setError(err.response?.data?.message || err.response?.data?.error || 'Failed to create trip.');
+      setError(err.response?.data?.error || 'Failed to create trip.');
     } finally {
       setLoading(false);
     }
@@ -67,93 +92,99 @@ export default function TripCreate() {
     <div className="max-w-2xl mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Create a Trip</h1>
-        <p className="text-gray-500 mt-1">Offer a ride and earn credits</p>
+        <p className="text-gray-500 mt-1">Offer a ride and earn ₹</p>
       </div>
 
       <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+        {/* Mode Toggle */}
+        <div className="flex bg-gray-100 rounded-xl p-1 mb-6">
+          <button type="button" onClick={() => setMode('simple')}
+            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+              mode === 'simple' ? 'bg-white shadow text-teal-700' : 'text-gray-500 hover:text-gray-700'
+            }`}>
+            ✏️ Simple
+          </button>
+          <button type="button" onClick={() => setMode('map')}
+            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+              mode === 'map' ? 'bg-white shadow text-teal-700' : 'text-gray-500 hover:text-gray-700'
+            }`}>
+            🗺️ Map Picker
+          </button>
+        </div>
+
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm">{error}</div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Origin */}
-          <fieldset className="border border-gray-200 rounded-xl p-4">
-            <legend className="text-sm font-semibold text-teal-700 px-2">📍 Origin</legend>
-            <div className="space-y-3">
+          {mode === 'simple' ? (
+            <>
+              {/* Simple Mode */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Location Name *</label>
-                <input type="text" name="originName" value={form.originName} onChange={handleChange}
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">📍 From (Origin) *</label>
+                <input type="text" value={originName} onChange={(e) => setOriginName(e.target.value)}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
-                  placeholder="e.g., Downtown Station" />
+                  placeholder="e.g., Serene County, Telecom Nagar, Hyderabad" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Latitude</label>
-                  <input type="number" step="any" name="originLat" value={form.originLat} onChange={handleChange}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
-                    placeholder="40.7128" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Longitude</label>
-                  <input type="number" step="any" name="originLng" value={form.originLng} onChange={handleChange}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
-                    placeholder="-74.0060" />
-                </div>
-              </div>
-            </div>
-          </fieldset>
-
-          {/* Destination */}
-          <fieldset className="border border-gray-200 rounded-xl p-4">
-            <legend className="text-sm font-semibold text-teal-700 px-2">🏁 Destination</legend>
-            <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Location Name *</label>
-                <input type="text" name="destinationName" value={form.destinationName} onChange={handleChange}
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">🏁 To (Destination) *</label>
+                <input type="text" value={destName} onChange={(e) => setDestName(e.target.value)}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
-                  placeholder="e.g., Airport Terminal" />
+                  placeholder="e.g., Rajiv Gandhi International Airport" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Latitude</label>
-                  <input type="number" step="any" name="destinationLat" value={form.destinationLat} onChange={handleChange}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
-                    placeholder="40.6413" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Longitude</label>
-                  <input type="number" step="any" name="destinationLng" value={form.destinationLng} onChange={handleChange}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
-                    placeholder="-73.7781" />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">💰 Price per Seat (₹) *</label>
+                <input type="number" min="1" step="1" value={creditsPerSeat} onChange={(e) => setCreditsPerSeat(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
+                  placeholder="e.g., 50" />
+                <p className="text-xs text-gray-400 mt-1">Set the price (₹) each rider pays for this trip</p>
               </div>
-            </div>
-          </fieldset>
+            </>
+          ) : (
+            <>
+              {/* Map Mode */}
+              <LocationPicker label="Origin" icon="📍" color="origin" value={origin} onChange={setOrigin} />
+              <LocationPicker label="Destination" icon="🏁" color="destination" value={destination} onChange={setDestination} />
+            </>
+          )}
 
-          {/* Trip Details */}
+          {/* Shared Fields */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Departure Date & Time *</label>
-              <input type="datetime-local" name="departureTime" value={form.departureTime} onChange={handleChange}
+              <input type="datetime-local" value={departureTime} onChange={(e) => setDepartureTime(e.target.value)}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Total Seats *</label>
-              <input type="number" min="1" max="20" name="totalSeats" value={form.totalSeats} onChange={handleChange}
+              <input type="number" min="1" max="20" value={totalSeats} onChange={(e) => setTotalSeats(e.target.value)}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none"
                 placeholder="4" />
             </div>
           </div>
 
           {/* Preview */}
-          {creditsPerSeat !== null && (
+          {mode === 'simple' && originName && destName && creditsPerSeat && (
             <div className="bg-teal-50 border border-teal-200 rounded-xl p-4">
               <h3 className="font-semibold text-teal-800 mb-2">Trip Preview</h3>
               <div className="grid grid-cols-2 gap-2 text-sm">
+                <span className="text-gray-600">Route:</span>
+                <span className="font-medium text-gray-900">{originName} → {destName}</span>
+                <span className="text-gray-600">Price per seat:</span>
+                <span className="font-bold text-teal-700">₹{creditsPerSeat}</span>
+              </div>
+            </div>
+          )}
+          {mode === 'map' && autoCredits !== null && (
+            <div className="bg-teal-50 border border-teal-200 rounded-xl p-4">
+              <h3 className="font-semibold text-teal-800 mb-2">Trip Preview</h3>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <span className="text-gray-600">Route:</span>
+                <span className="font-medium text-gray-900">{origin.name} → {destination.name}</span>
                 <span className="text-gray-600">Distance:</span>
                 <span className="font-medium text-gray-900">{distance.toFixed(1)} km</span>
-                <span className="text-gray-600">Credits per seat:</span>
-                <span className="font-bold text-teal-700">{creditsPerSeat} credits</span>
+                <span className="text-gray-600">Price per seat:</span>
+                <span className="font-bold text-teal-700">₹{autoCredits} (auto)</span>
               </div>
             </div>
           )}

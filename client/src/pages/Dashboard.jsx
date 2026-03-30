@@ -46,9 +46,9 @@ export default function Dashboard() {
       <div className="bg-gradient-to-r from-teal-600 to-teal-700 rounded-2xl shadow-lg p-6 mb-8 text-white">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-teal-100 text-sm font-medium">Credit Balance</p>
+            <p className="text-teal-100 text-sm font-medium">Balance (₹)</p>
             <p className="text-4xl font-bold mt-1">
-              {loading ? '...' : (balance ?? 0)} <span className="text-xl text-teal-200">credits</span>
+              ₹{loading ? '...' : (balance ?? 0)}
             </p>
           </div>
           <div className="text-6xl opacity-80">💰</div>
@@ -69,7 +69,7 @@ export default function Dashboard() {
         >
           <span className="text-4xl block mb-2 group-hover:scale-110 transition-transform inline-block">🚀</span>
           <h3 className="font-semibold text-gray-900">Create Trip</h3>
-          <p className="text-sm text-gray-500 mt-1">Offer a ride and earn credits</p>
+          <p className="text-sm text-gray-500 mt-1">Offer a ride and earn ₹</p>
         </Link>
         <Link
           to="/trips"

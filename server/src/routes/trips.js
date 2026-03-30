@@ -8,23 +8,31 @@ const router = express.Router();
 // POST /api/trips — Create a new trip (driver)
 router.post('/', auth, async (req, res) => {
   try {
-    const { originName, originLat, originLng, destName, destLat, destLng, departureTime, totalSeats } = req.body;
+    const { originName, originLat, originLng, destName, destLat, destLng, departureTime, totalSeats, creditsPerSeat: manualCredits } = req.body;
 
-    if (!originName || originLat == null || originLng == null || !destName || destLat == null || destLng == null || !departureTime || !totalSeats) {
-      return res.status(400).json({ error: 'All trip fields are required.' });
+    if (!originName || !destName || !departureTime || !totalSeats) {
+      return res.status(400).json({ error: 'Origin, destination, departure time, and seats are required.' });
     }
 
-    const creditsPerSeat = calculateCredits(originLat, originLng, destLat, destLng);
+    // Calculate credits: use manual override, or calculate from coordinates, or require manual
+    let creditsPerSeat;
+    if (manualCredits != null && manualCredits > 0) {
+      creditsPerSeat = parseFloat(manualCredits);
+    } else if (originLat != null && originLng != null && destLat != null && destLng != null) {
+      creditsPerSeat = calculateCredits(originLat, originLng, destLat, destLng);
+    } else {
+      return res.status(400).json({ error: 'Please specify price per seat, or provide coordinates for auto-calculation.' });
+    }
 
     const trip = await prisma.trip.create({
       data: {
         driverId: req.user.id,
         originName,
-        originLat: parseFloat(originLat),
-        originLng: parseFloat(originLng),
+        originLat: originLat != null ? parseFloat(originLat) : 0,
+        originLng: originLng != null ? parseFloat(originLng) : 0,
         destName,
-        destLat: parseFloat(destLat),
-        destLng: parseFloat(destLng),
+        destLat: destLat != null ? parseFloat(destLat) : 0,
+        destLng: destLng != null ? parseFloat(destLng) : 0,
         departureTime: new Date(departureTime),
         totalSeats: parseInt(totalSeats, 10),
         availableSeats: parseInt(totalSeats, 10),
@@ -90,8 +98,8 @@ router.get('/', auth, async (req, res) => {
 
     if (search) {
       where.OR = [
-        { originName: { contains: search, mode: 'insensitive' } },
-        { destName: { contains: search, mode: 'insensitive' } },
+        { originName: { contains: search } },
+        { destName: { contains: search } },
       ];
     }
 
@@ -160,7 +168,7 @@ router.patch('/:id/complete', auth, async (req, res) => {
         // Check rider balance
         const rider = await tx.user.findUnique({ where: { id: jr.riderId } });
         if (rider.creditBalance < trip.creditsPerSeat) {
-          throw new Error(`Rider ${rider.username} has insufficient credits.`);
+          throw new Error(`Rider ${rider.username} has insufficient balance.`);
         }
 
         // Deduct from rider
@@ -200,7 +208,7 @@ router.patch('/:id/complete', auth, async (req, res) => {
       return updatedTrip;
     });
 
-    return res.json({ trip: result, message: `Trip completed. ${acceptedRequests.length} rider(s) charged ${trip.creditsPerSeat} credits each.` });
+    return res.json({ trip: result, message: `Trip completed. ${acceptedRequests.length} rider(s) charged ₹${trip.creditsPerSeat} each.` });
   } catch (err) {
     console.error('Complete trip error:', err);
     return res.status(500).json({ error: err.message || 'Internal server error.' });

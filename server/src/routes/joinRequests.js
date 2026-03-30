@@ -16,7 +16,7 @@ router.post('/trips/:id/join', auth, async (req, res) => {
 
     // Check for insufficient credits
     if (req.user.creditBalance < trip.creditsPerSeat) {
-      return res.status(400).json({ error: 'Insufficient credits to join this trip.' });
+      return res.status(400).json({ error: 'Insufficient balance to join this trip.' });
     }
 
     // Check for existing request
