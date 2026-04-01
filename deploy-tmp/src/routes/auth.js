@@ -4,35 +4,16 @@ const jwt = require('jsonwebtoken');
 const prisma = require('../config/db');
 const auth = require('../middleware/auth');
 const { generateOTP, sendOTPEmail } = require('../utils/email');
-const { sendSMS } = require('../utils/sms');
 
 const router = express.Router();
 
 // POST /api/auth/register — Step 1: Validate, send OTP
 router.post('/register', async (req, res) => {
   try {
-    const { email: rawEmail, phone, username, password, gender, age } = req.body;
+    const { email: rawEmail, username, password } = req.body;
 
-    if (!rawEmail || !phone || !username || !password) {
-      return res.status(400).json({ error: 'Email, phone, username, and password are required.' });
-    }
-
-    // Validate phone format (starts with + or digits, at least 10 chars)
-    const phoneTrimmed = phone.trim();
-    if (!/^[+\d][\d\s\-()]{9,}$/.test(phoneTrimmed)) {
-      return res.status(400).json({ error: 'Please enter a valid phone number (10+ digits, optionally starting with +).' });
-    }
-
-    // Validate optional gender
-    const validGenders = ['Male', 'Female', 'Other'];
-    if (gender && !validGenders.includes(gender)) {
-      return res.status(400).json({ error: 'Gender must be Male, Female, or Other.' });
-    }
-
-    // Validate optional age
-    const parsedAge = age != null && age !== '' ? parseInt(age, 10) : null;
-    if (parsedAge !== null && (isNaN(parsedAge) || parsedAge < 18)) {
-      return res.status(400).json({ error: 'Age must be a number 18 or above.' });
+    if (!rawEmail || !username || !password) {
+      return res.status(400).json({ error: 'Email, username, and password are required.' });
     }
 
     const email = rawEmail.trim().toLowerCase();
@@ -41,12 +22,6 @@ router.post('/register', async (req, res) => {
     const existingEmail = await prisma.user.findUnique({ where: { email } });
     if (existingEmail) {
       return res.status(409).json({ error: 'This email is already registered. Please login instead.' });
-    }
-
-    // Check if phone already registered
-    const existingPhone = await prisma.user.findUnique({ where: { phone: phoneTrimmed } });
-    if (existingPhone) {
-      return res.status(409).json({ error: 'This phone number is already registered. Please login instead.' });
     }
 
     // Check if username already taken
@@ -62,28 +37,16 @@ router.post('/register', async (req, res) => {
     // Upsert pending OTP (replace if user re-requests)
     await prisma.otpVerification.upsert({
       where: { email },
-      update: { phone: phoneTrimmed, username, password: hashedPassword, otp, expiresAt, gender: gender || null, age: parsedAge },
-      create: { email, phone: phoneTrimmed, username, password: hashedPassword, otp, expiresAt, gender: gender || null, age: parsedAge },
+      update: { username, password: hashedPassword, otp, expiresAt },
+      create: { email, username, password: hashedPassword, otp, expiresAt },
     });
 
-    // Send same OTP to both email and phone
-    let emailResult = {};
-    try {
-      emailResult = await sendOTPEmail(email, otp);
-      console.log('📧 Email OTP sent to:', email);
-    } catch (emailErr) {
-      console.error('📧 Email send failed:', emailErr.message);
-    }
-
-    try {
-      await sendSMS(phoneTrimmed, `Your Community CarPool verification code is: ${otp}`);
-    } catch (smsErr) {
-      console.error('📱 SMS send failed:', smsErr.message);
-    }
+    // Send OTP email
+    const result = await sendOTPEmail(email, otp);
 
     return res.status(200).json({
-      message: 'OTP sent to your email. Please check your inbox and verify to complete registration.',
-      previewUrl: emailResult.previewUrl || null,
+      message: 'OTP sent to your email. Please verify to complete registration.',
+      previewUrl: result.previewUrl || null,
     });
   } catch (err) {
     console.error('Register error:', err);
@@ -131,11 +94,8 @@ router.post('/verify-otp', async (req, res) => {
       const newUser = await tx.user.create({
         data: {
           email: pending.email,
-          phone: pending.phone,
           username: pending.username,
           password: pending.password,
-          gender: pending.gender,
-          age: pending.age,
         },
       });
       await tx.otpVerification.delete({ where: { email } });
@@ -146,7 +106,7 @@ router.post('/verify-otp', async (req, res) => {
 
     return res.status(201).json({
       token,
-      user: { id: user.id, email: user.email, phone: user.phone, username: user.username, gender: user.gender, age: user.age, creditBalance: user.creditBalance, role: user.role },
+      user: { id: user.id, email: user.email, username: user.username, creditBalance: user.creditBalance, role: user.role },
     });
   } catch (err) {
     console.error('Verify OTP error:', err);
@@ -178,22 +138,11 @@ router.post('/resend-otp', async (req, res) => {
       data: { otp, expiresAt },
     });
 
-    // Send new OTP to both email and phone
-    let emailResult = {};
-    try {
-      emailResult = await sendOTPEmail(email, otp);
-    } catch (emailErr) {
-      console.error('📧 Resend email failed:', emailErr.message);
-    }
-    try {
-      await sendSMS(pending.phone, `Your Community CarPool verification code is: ${otp}`);
-    } catch (smsErr) {
-      console.error('📱 Resend SMS failed:', smsErr.message);
-    }
+    const result = await sendOTPEmail(email, otp);
 
     return res.json({
       message: 'New OTP sent to your email.',
-      previewUrl: emailResult.previewUrl || null,
+      previewUrl: result.previewUrl || null,
     });
   } catch (err) {
     console.error('Resend OTP error:', err);
@@ -226,7 +175,7 @@ router.post('/login', async (req, res) => {
 
     return res.json({
       token,
-      user: { id: user.id, email: user.email, phone: user.phone, username: user.username, gender: user.gender, age: user.age, creditBalance: user.creditBalance, role: user.role },
+      user: { id: user.id, email: user.email, username: user.username, creditBalance: user.creditBalance, role: user.role },
     });
   } catch (err) {
     console.error('Login error:', err);
@@ -237,8 +186,8 @@ router.post('/login', async (req, res) => {
 // GET /api/auth/me
 router.get('/me', auth, async (req, res) => {
   try {
-    const { id, email, phone, username, gender, age, creditBalance, role, createdAt } = req.user;
-    return res.json({ user: { id, email, phone, username, gender, age, creditBalance, role, createdAt } });
+    const { id, email, username, creditBalance, role, createdAt } = req.user;
+    return res.json({ user: { id, email, username, creditBalance, role, createdAt } });
   } catch (err) {
     console.error('Me error:', err);
     return res.status(500).json({ error: 'Internal server error.' });

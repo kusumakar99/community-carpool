@@ -31,7 +31,7 @@ router.post('/trips/:id/join', auth, async (req, res) => {
       data: { tripId: trip.id, riderId: req.user.id },
       include: {
         trip: { select: { id: true, originName: true, destName: true, creditsPerSeat: true } },
-        rider: { select: { id: true, username: true, gender: true, age: true } },
+        rider: { select: { id: true, username: true } },
       },
     });
 
@@ -59,7 +59,7 @@ router.patch('/join-requests/:id/accept', auth, async (req, res) => {
       const updated = await tx.joinRequest.update({
         where: { id: joinRequest.id },
         data: { status: 'ACCEPTED' },
-        include: { rider: { select: { id: true, username: true, phone: true, gender: true, age: true } } },
+        include: { rider: { select: { id: true, username: true } } },
       });
 
       await tx.trip.update({

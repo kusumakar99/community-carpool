@@ -1,4 +1,30 @@
+# Dependencies
 node_modules/
-dist/
+server/node_modules/
+client/node_modules/
+
+# Environment
 .env
-*.log
+server/.env
+
+# Database
+server/prisma/dev.db
+server/prisma/dev.db-journal
+
+# Build output
+client/dist/
+server/public/
+
+# Deploy artifacts
+deploy-clean/
+deploy-clean.zip
+azure-logs/
+azure-logs.zip
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

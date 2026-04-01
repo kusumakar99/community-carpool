@@ -154,6 +154,28 @@ export default function TripDetail() {
             </div>
           </div>
 
+          {/* Driver Info */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <h3 className="font-semibold text-gray-900 mb-3">🚗 Driver</h3>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center text-xl">
+                {trip.driver?.username?.[0]?.toUpperCase() || '?'}
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">{trip.driver?.username || 'Unknown'}</p>
+                <div className="flex gap-3 text-xs text-gray-500 mt-1">
+                  {trip.driver?.gender && <span>👤 {trip.driver.gender}</span>}
+                  {trip.driver?.age && <span>🎂 {trip.driver.age} yrs</span>}
+                </div>
+                {trip.driver?.phone && (
+                  <a href={`tel:${trip.driver.phone}`} className="inline-flex items-center gap-1 text-green-600 text-sm font-medium mt-1">
+                    📞 {trip.driver.phone}
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Rider Actions */}
           {!isDriver && status === 'scheduled' && (
             <div>
@@ -250,13 +272,23 @@ export default function TripDetail() {
                     {joinRequests.map((req) => {
                       const reqId = req._id || req.id;
                       const reqUser = req.rider?.username || req.user?.username || req.user?.email || 'User';
+                      const reqStatus = (req.status || '').toUpperCase();
                       return (
                         <div key={reqId} className="flex items-center justify-between bg-gray-50 p-4 rounded-xl">
                           <div>
-                            <p className="font-medium text-gray-900">{reqUser}</p>
-                            <p className="text-sm text-gray-500">Status: <span className="font-semibold capitalize">{req.status}</span></p>
+                            <span className="font-medium text-gray-900">{reqUser}</span>
+                            <div className="flex gap-3 text-xs text-gray-500 mt-1">
+                              {req.rider?.gender && <span>👤 {req.rider.gender}</span>}
+                              {req.rider?.age && <span>🎂 {req.rider.age} yrs</span>}
+                              {reqStatus === 'ACCEPTED' && req.rider?.phone && (
+                                <a href={`tel:${req.rider.phone}`} className="text-green-600 font-medium">
+                                  📞 {req.rider.phone}
+                                </a>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-500 mt-1">Status: <span className="font-semibold capitalize">{req.status}</span></p>
                           </div>
-                          {(req.status === 'pending' || req.status === 'PENDING') && (
+                          {(reqStatus === 'PENDING') && (
                             <div className="flex gap-2">
                               <button onClick={() => handleRequestAction(reqId, 'accept')} disabled={!!actionLoading}
                                 className="bg-green-500 hover:bg-green-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 cursor-pointer">
@@ -267,6 +299,9 @@ export default function TripDetail() {
                                 Reject
                               </button>
                             </div>
+                          )}
+                          {reqStatus === 'ACCEPTED' && (
+                            <span className="text-green-600 text-sm font-medium">✅ Accepted</span>
                           )}
                         </div>
                       );

@@ -116,6 +116,26 @@ export default function CommunityDetail() {
     }
   };
 
+  const handlePromote = async (memberId) => {
+    try {
+      const res = await api.patch(`/communities/${id}/members/${memberId}/promote`);
+      alert(res.data.message);
+      fetchCommunity();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to promote member.');
+    }
+  };
+
+  const handleDemote = async (memberId) => {
+    try {
+      const res = await api.patch(`/communities/${id}/members/${memberId}/demote`);
+      alert(res.data.message);
+      fetchCommunity();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to demote admin.');
+    }
+  };
+
   const handleAddPhone = async () => {
     const phone = newPhone.trim();
     if (!phone) return;
@@ -279,11 +299,27 @@ export default function CommunityDetail() {
                     m.role === 'admin' ? 'bg-teal-100 text-teal-800' : 'bg-gray-100 text-gray-600'
                   }`}>{m.role}</span>
                   {isAdmin && m.role !== 'admin' && (
+                    <>
+                      <button
+                        onClick={() => handlePromote(m.id)}
+                        className="text-teal-600 hover:text-teal-800 text-xs px-2 py-1 rounded cursor-pointer font-medium"
+                      >
+                        ⬆ Make Admin
+                      </button>
+                      <button
+                        onClick={() => handleRemoveMember(m.id)}
+                        className="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded cursor-pointer"
+                      >
+                        ✕ Remove
+                      </button>
+                    </>
+                  )}
+                  {isAdmin && m.role === 'admin' && m.userId !== user?.id && (
                     <button
-                      onClick={() => handleRemoveMember(m.id)}
-                      className="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded cursor-pointer"
+                      onClick={() => handleDemote(m.id)}
+                      className="text-amber-600 hover:text-amber-800 text-xs px-2 py-1 rounded cursor-pointer font-medium"
                     >
-                      ✕ Remove
+                      ⬇ Remove Admin
                     </button>
                   )}
                 </div>

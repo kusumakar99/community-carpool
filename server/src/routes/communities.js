@@ -196,7 +196,7 @@ router.get('/:id', auth, async (req, res) => {
         creator: { select: { id: true, username: true } },
         members: {
           where: { status: 'active' },
-          include: { user: { select: { id: true, username: true, email: true } } },
+          include: { user: { select: { id: true, username: true, email: true, phone: true, gender: true, age: true } } },
           orderBy: { joinedAt: 'asc' },
         },
         _count: { select: { members: { where: { status: 'active' } }, trips: true } },
@@ -481,6 +481,66 @@ router.delete('/:id/members/:memberId', auth, async (req, res) => {
     return res.json({ message: 'Member removed from the community.' });
   } catch (err) {
     console.error('Remove member error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+// PATCH /api/communities/:id/members/:memberId/promote — Promote member to admin
+router.patch('/:id/members/:memberId/promote', auth, async (req, res) => {
+  try {
+    if (!(await isCommunityAdmin(req.params.id, req.user.id))) {
+      return res.status(403).json({ error: 'Only community admins can promote members.' });
+    }
+
+    const member = await prisma.communityMember.findFirst({
+      where: { id: req.params.memberId, communityId: req.params.id },
+      include: { user: { select: { id: true, username: true } } },
+    });
+    if (!member) return res.status(404).json({ error: 'Member not found.' });
+    if (member.status !== 'active') return res.status(400).json({ error: 'Only active members can be promoted.' });
+    if (member.role === 'admin') return res.status(400).json({ error: 'This member is already an admin.' });
+
+    await prisma.communityMember.update({
+      where: { id: member.id },
+      data: { role: 'admin' },
+    });
+
+    return res.json({ message: `${member.user.username} is now a community admin.` });
+  } catch (err) {
+    console.error('Promote member error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+// PATCH /api/communities/:id/members/:memberId/demote — Demote admin to member
+router.patch('/:id/members/:memberId/demote', auth, async (req, res) => {
+  try {
+    if (!(await isCommunityAdmin(req.params.id, req.user.id))) {
+      return res.status(403).json({ error: 'Only community admins can demote members.' });
+    }
+
+    const member = await prisma.communityMember.findFirst({
+      where: { id: req.params.memberId, communityId: req.params.id },
+      include: { user: { select: { id: true, username: true } } },
+    });
+    if (!member) return res.status(404).json({ error: 'Member not found.' });
+    if (member.role !== 'admin') return res.status(400).json({ error: 'This member is not an admin.' });
+    if (member.userId === req.user.id) return res.status(400).json({ error: 'You cannot demote yourself.' });
+
+    // Ensure at least one admin remains
+    const adminCount = await prisma.communityMember.count({
+      where: { communityId: req.params.id, role: 'admin', status: 'active' },
+    });
+    if (adminCount <= 1) return res.status(400).json({ error: 'Cannot demote. At least one admin must remain.' });
+
+    await prisma.communityMember.update({
+      where: { id: member.id },
+      data: { role: 'member' },
+    });
+
+    return res.json({ message: `${member.user.username} is no longer an admin.` });
+  } catch (err) {
+    console.error('Demote member error:', err);
     return res.status(500).json({ error: 'Internal server error.' });
   }
 });

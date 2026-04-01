@@ -3,7 +3,9 @@ import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-lea
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Fix Leaflet default marker icons (they break with bundlers)
+const NOMINATIM_BASE = import.meta.env.PROD
+  ? 'https://nominatim.openstreetmap.org'
+  : '/nominatim';
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -32,7 +34,7 @@ function MapClickHandler({ onLocationSelect }) {
       // Reverse geocode using Nominatim
       try {
         const res = await fetch(
-          `/nominatim/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16`
+          `${NOMINATIM_BASE}/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16`
         );
         const data = await res.json();
         const name = data.display_name
@@ -84,7 +86,7 @@ function SearchBox({ onSelect, placeholder }) {
     setSearching(true);
     try {
       const res = await fetch(
-        `/nominatim/search?format=json&q=${encodeURIComponent(text)}&limit=5&addressdetails=1`
+        `${NOMINATIM_BASE}/search?format=json&q=${encodeURIComponent(text)}&limit=5&addressdetails=1`
       );
       const data = await res.json();
       setResults(data);
