@@ -14,13 +14,13 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ error: 'Origin, destination, departure time, and seats are required.' });
     }
 
-    // If communityId provided, verify user is a member
+    // If communityId provided, verify user is an active member
     if (communityId) {
       const membership = await prisma.communityMember.findUnique({
         where: { communityId_userId: { communityId, userId: req.user.id } },
       });
-      if (!membership) {
-        return res.status(403).json({ error: 'You are not a member of this community.' });
+      if (!membership || membership.status !== 'active') {
+        return res.status(403).json({ error: 'You are not an active member of this community.' });
       }
     }
 
@@ -118,18 +118,18 @@ router.get('/', auth, async (req, res) => {
     };
 
     if (communityId) {
-      // Verify user is a member
+      // Verify user is an active member
       const membership = await prisma.communityMember.findUnique({
         where: { communityId_userId: { communityId, userId: req.user.id } },
       });
-      if (!membership) {
-        return res.status(403).json({ error: 'You are not a member of this community.' });
+      if (!membership || membership.status !== 'active') {
+        return res.status(403).json({ error: 'You are not an active member of this community.' });
       }
       where.communityId = communityId;
     } else {
-      // Show public trips (no community) + trips from user's communities
+      // Show public trips (no community) + trips from user's active communities
       const memberships = await prisma.communityMember.findMany({
-        where: { userId: req.user.id },
+        where: { userId: req.user.id, status: 'active' },
         select: { communityId: true },
       });
       const myCommunityIds = memberships.map(m => m.communityId);

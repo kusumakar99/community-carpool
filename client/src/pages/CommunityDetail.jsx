@@ -15,6 +15,11 @@ export default function CommunityDetail() {
   const [copied, setCopied] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [pendingMembers, setPendingMembers] = useState([]);
+  const [approvedPhones, setApprovedPhones] = useState([]);
+  const [newPhone, setNewPhone] = useState('');
+  const [bulkPhones, setBulkPhones] = useState('');
+  const [showApprovedPhones, setShowApprovedPhones] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -22,8 +27,21 @@ export default function CommunityDetail() {
         api.get(`/communities/${id}`),
         api.get(`/communities/${id}/trips`),
       ]);
-      if (commRes.status === 'fulfilled') setCommunity(commRes.value.data.community);
-      else setError('Failed to load community.');
+      if (commRes.status === 'fulfilled') {
+        const comm = commRes.value.data.community;
+        setCommunity(comm);
+        // If admin, also fetch pending members and approved phones
+        if (comm.myRole === 'admin') {
+          const [pendingRes, phonesRes] = await Promise.allSettled([
+            api.get(`/communities/${id}/pending-members`),
+            api.get(`/communities/${id}/approved-phones`),
+          ]);
+          if (pendingRes.status === 'fulfilled') setPendingMembers(pendingRes.value.data.pendingMembers || []);
+          if (phonesRes.status === 'fulfilled') setApprovedPhones(phonesRes.value.data.phones || []);
+        }
+      } else {
+        setError('Failed to load community.');
+      }
       if (tripsRes.status === 'fulfilled') setTrips(tripsRes.value.data.trips || []);
     } catch {
       setError('Failed to load community.');
@@ -62,6 +80,74 @@ export default function CommunityDetail() {
       setCommunity(prev => ({ ...prev, isActive: res.data.community.isActive }));
     } catch {
       alert('Failed to update community.');
+    }
+  };
+
+  const handleApprove = async (memberId) => {
+    try {
+      await api.patch(`/communities/${id}/members/${memberId}/approve`);
+      setPendingMembers(prev => prev.filter(m => m.id !== memberId));
+      setCommunity(prev => prev ? { ...prev, memberCount: prev.memberCount + 1 } : prev);
+    } catch {
+      alert('Failed to approve member.');
+    }
+  };
+
+  const handleReject = async (memberId) => {
+    try {
+      await api.patch(`/communities/${id}/members/${memberId}/reject`);
+      setPendingMembers(prev => prev.filter(m => m.id !== memberId));
+    } catch {
+      alert('Failed to reject member.');
+    }
+  };
+
+  const handleRemoveMember = async (memberId) => {
+    if (!confirm('Remove this member from the community?')) return;
+    try {
+      await api.delete(`/communities/${id}/members/${memberId}`);
+      setCommunity(prev => prev ? {
+        ...prev,
+        members: prev.members.filter(m => m.id !== memberId),
+        memberCount: prev.memberCount - 1,
+      } : prev);
+    } catch {
+      alert('Failed to remove member.');
+    }
+  };
+
+  const handleAddPhone = async () => {
+    const phone = newPhone.trim();
+    if (!phone) return;
+    try {
+      await api.post(`/communities/${id}/approved-phones`, { phones: [phone] });
+      setNewPhone('');
+      const res = await api.get(`/communities/${id}/approved-phones`);
+      setApprovedPhones(res.data.phones || []);
+    } catch {
+      alert('Failed to add phone number.');
+    }
+  };
+
+  const handleBulkAddPhones = async () => {
+    const phones = bulkPhones.split('\n').map(p => p.trim()).filter(p => p.length > 0);
+    if (phones.length === 0) return;
+    try {
+      await api.post(`/communities/${id}/approved-phones`, { phones });
+      setBulkPhones('');
+      const res = await api.get(`/communities/${id}/approved-phones`);
+      setApprovedPhones(res.data.phones || []);
+    } catch {
+      alert('Failed to add phone numbers.');
+    }
+  };
+
+  const handleDeletePhone = async (phoneId) => {
+    try {
+      await api.delete(`/communities/${id}/approved-phones/${phoneId}`);
+      setApprovedPhones(prev => prev.filter(p => p.id !== phoneId));
+    } catch {
+      alert('Failed to remove phone number.');
     }
   };
 
@@ -188,12 +274,93 @@ export default function CommunityDetail() {
                   <span className="font-medium text-gray-900">{m.user.username}</span>
                   <span className="text-gray-400 text-sm ml-2">{m.user.email}</span>
                 </div>
-                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                  m.role === 'admin' ? 'bg-teal-100 text-teal-800' : 'bg-gray-100 text-gray-600'
-                }`}>{m.role}</span>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                    m.role === 'admin' ? 'bg-teal-100 text-teal-800' : 'bg-gray-100 text-gray-600'
+                  }`}>{m.role}</span>
+                  {isAdmin && m.role !== 'admin' && (
+                    <button
+                      onClick={() => handleRemoveMember(m.id)}
+                      className="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded cursor-pointer"
+                    >
+                      ✕ Remove
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Pending Members (admin only) */}
+      {isAdmin && pendingMembers.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+          <h3 className="font-semibold text-amber-800 mb-3">⏳ Pending Approvals ({pendingMembers.length})</h3>
+          {pendingMembers.map(m => (
+            <div key={m.id} className="flex items-center justify-between py-3 border-b border-amber-100 last:border-0">
+              <div>
+                <span className="font-medium text-gray-900">{m.user.username}</span>
+                <div className="flex gap-3 text-xs text-gray-500 mt-1">
+                  <span>📞 {m.user.phone}</span>
+                  {m.user.gender && <span>👤 {m.user.gender}</span>}
+                  {m.user.age && <span>🎂 {m.user.age} yrs</span>}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => handleApprove(m.id)} className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm cursor-pointer">✅ Approve</button>
+                <button onClick={() => handleReject(m.id)} className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm cursor-pointer">❌ Reject</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Pre-approved Phones (admin only) */}
+      {isAdmin && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-blue-800">📋 Pre-approved Phone Numbers</h3>
+            <button
+              onClick={() => setShowApprovedPhones(!showApprovedPhones)}
+              className="text-blue-600 hover:text-blue-800 text-sm cursor-pointer"
+            >
+              {showApprovedPhones ? 'Hide' : `Show (${approvedPhones.length})`}
+            </button>
+          </div>
+          <div className="flex gap-2 mb-3">
+            <input
+              type="text"
+              value={newPhone}
+              onChange={e => setNewPhone(e.target.value)}
+              placeholder="+91 9876543210"
+              className="flex-1 px-3 py-2 border rounded-lg text-sm"
+              onKeyDown={e => e.key === 'Enter' && handleAddPhone()}
+            />
+            <button onClick={handleAddPhone} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm cursor-pointer">Add</button>
+          </div>
+          <textarea
+            value={bulkPhones}
+            onChange={e => setBulkPhones(e.target.value)}
+            placeholder="Paste multiple phone numbers (one per line)"
+            className="w-full px-3 py-2 border rounded-lg text-sm mb-2"
+            rows={3}
+          />
+          <button onClick={handleBulkAddPhones} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm mb-3 cursor-pointer">Add All</button>
+          <p className="text-xs text-blue-600 mb-3">Users with these phone numbers will be auto-approved when they join.</p>
+          {showApprovedPhones && approvedPhones.length > 0 && (
+            <div className="space-y-2">
+              {approvedPhones.map(p => (
+                <div key={p.id} className="flex items-center justify-between bg-white px-3 py-2 rounded-lg">
+                  <span className="text-sm font-mono text-gray-700">{p.phone}</span>
+                  <button onClick={() => handleDeletePhone(p.id)} className="text-red-500 hover:text-red-700 text-xs cursor-pointer">✕ Remove</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {showApprovedPhones && approvedPhones.length === 0 && (
+            <p className="text-xs text-gray-500">No pre-approved phone numbers yet.</p>
+          )}
         </div>
       )}
 

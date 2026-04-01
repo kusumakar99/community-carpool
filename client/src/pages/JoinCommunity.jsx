@@ -10,6 +10,7 @@ export default function JoinCommunity() {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [message, setMessage] = useState('');
+  const [joinStatus, setJoinStatus] = useState(''); // 'active' or 'pending'
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -44,8 +45,11 @@ export default function JoinCommunity() {
     try {
       const res = await api.post('/communities/join', { inviteCode });
       setMessage(res.data.message);
+      setJoinStatus(res.data.status || 'active');
       localStorage.removeItem('pendingInviteCode');
-      setTimeout(() => navigate(`/communities/${res.data.community.id}`), 2000);
+      if (res.data.status === 'active') {
+        setTimeout(() => navigate(`/communities/${res.data.community.id}`), 2000);
+      }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to join community.');
     } finally {
@@ -91,10 +95,22 @@ export default function JoinCommunity() {
         )}
 
         {message ? (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm">
-            {message}
-            <p className="mt-2 text-xs text-green-500">Redirecting...</p>
-          </div>
+          joinStatus === 'pending' ? (
+            <div className="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-lg mb-4 text-sm">
+              <span className="text-2xl block mb-2">⏳</span>
+              <p className="font-medium">{message}</p>
+              <p className="mt-2 text-xs text-amber-500">You'll get access once the community admin approves your request.</p>
+              <Link to="/communities" className="text-amber-700 hover:text-amber-900 font-medium text-sm mt-3 inline-block">
+                Go to Communities →
+              </Link>
+            </div>
+          ) : (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 text-sm">
+              <span className="text-2xl block mb-2">🎉</span>
+              <p className="font-medium">{message}</p>
+              <p className="mt-2 text-xs text-green-500">Redirecting...</p>
+            </div>
+          )
         ) : user ? (
           <button
             onClick={handleJoin}

@@ -121,16 +121,17 @@ model Transaction {
 }
 
 model Community {
-  id          String            @id @default(uuid())
-  name        String
-  description String?
-  inviteCode  String            @unique
-  createdBy   String
-  creator     User              @relation("CreatedCommunities", fields: [createdBy], references: [id])
-  isActive    Boolean           @default(true)
-  createdAt   DateTime          @default(now())
-  members     CommunityMember[]
-  trips       Trip[]            @relation("CommunityTrips")
+  id             String            @id @default(uuid())
+  name           String
+  description    String?
+  inviteCode     String            @unique
+  createdBy      String
+  creator        User              @relation("CreatedCommunities", fields: [createdBy], references: [id])
+  isActive       Boolean           @default(true)
+  createdAt      DateTime          @default(now())
+  members        CommunityMember[]
+  trips          Trip[]            @relation("CommunityTrips")
+  approvedPhones ApprovedPhone[]
 }
 
 model CommunityMember {
@@ -140,7 +141,19 @@ model CommunityMember {
   userId      String
   user        User      @relation("CommunityMemberships", fields: [userId], references: [id])
   role        String    @default("member")
+  status      String    @default("active")
   joinedAt    DateTime  @default(now())
 
   @@unique([communityId, userId])
+}
+
+model ApprovedPhone {
+  id          String    @id @default(uuid())
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id])
+  phone       String
+  addedBy     String
+  addedAt     DateTime  @default(now())
+
+  @@unique([communityId, phone])
 }
