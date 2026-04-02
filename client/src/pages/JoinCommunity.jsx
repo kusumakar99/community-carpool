@@ -68,12 +68,27 @@ export default function JoinCommunity() {
   if (error && !community) {
     return (
       <div className="max-w-md mx-auto px-4 py-16 text-center">
-        <span className="text-5xl block mb-4">❌</span>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Invalid Invite Link</h1>
-        <p className="text-gray-500 mb-6">{error}</p>
-        <Link to="/communities" className="text-teal-600 hover:text-teal-700 font-medium">
-          Go to Communities →
-        </Link>
+        <span className="text-5xl block mb-4">🔍</span>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Community Not Found</h1>
+        <p className="text-gray-500 mb-4">This invite link may have expired or the community may no longer exist.</p>
+        <p className="text-sm text-gray-400 mb-6">Invite code: <span className="font-mono bg-gray-100 px-2 py-1 rounded">{inviteCode}</span></p>
+        <div className="space-y-3">
+          <p className="text-sm text-gray-500">Ask your community admin for a new invite link, or:</p>
+          {user ? (
+            <Link to="/communities" className="inline-block bg-teal-600 hover:bg-teal-700 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors">
+              Go to My Communities
+            </Link>
+          ) : (
+            <div className="flex gap-3 justify-center">
+              <Link to="/login" className="bg-teal-600 hover:bg-teal-700 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors">
+                Login
+              </Link>
+              <Link to="/register" className="bg-white border border-teal-600 text-teal-600 hover:bg-teal-50 font-semibold px-6 py-2.5 rounded-lg transition-colors">
+                Register
+              </Link>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
