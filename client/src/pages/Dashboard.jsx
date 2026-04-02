@@ -47,62 +47,19 @@ export default function Dashboard() {
         <p className="text-gray-500 mt-1">Here&apos;s your carpool dashboard</p>
       </div>
 
-      {/* Credit Balance Card */}
-      <div className="bg-gradient-to-r from-teal-600 to-teal-700 rounded-2xl shadow-lg p-6 mb-8 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-teal-100 text-sm font-medium">Balance (₹)</p>
-            <p className="text-4xl font-bold mt-1">
-              ₹{loading ? '...' : (balance ?? 0)}
-            </p>
-          </div>
-          <div className="text-6xl opacity-80">💰</div>
+      {/* My Communities — First */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-gray-900">My Communities</h2>
+          <Link to="/communities" className="text-teal-600 hover:text-teal-700 text-sm font-medium">
+            View all →
+          </Link>
         </div>
-        <Link
-          to="/transactions"
-          className="inline-block mt-4 text-sm text-teal-100 hover:text-white underline underline-offset-2"
-        >
-          View transaction history →
-        </Link>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <Link
-          to="/trips/create"
-          className="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg hover:border-teal-200 transition-all text-center group"
-        >
-          <span className="text-4xl block mb-2 group-hover:scale-110 transition-transform inline-block">🚀</span>
-          <h3 className="font-semibold text-gray-900">Create Trip</h3>
-          <p className="text-sm text-gray-500 mt-1">Offer a ride and earn ₹</p>
-        </Link>
-        <Link
-          to="/trips"
-          className="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg hover:border-teal-200 transition-all text-center group"
-        >
-          <span className="text-4xl block mb-2 group-hover:scale-110 transition-transform inline-block">🔍</span>
-          <h3 className="font-semibold text-gray-900">Browse Trips</h3>
-          <p className="text-sm text-gray-500 mt-1">Find rides near you</p>
-        </Link>
-        <Link
-          to="/my-trips"
-          className="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg hover:border-teal-200 transition-all text-center group"
-        >
-          <span className="text-4xl block mb-2 group-hover:scale-110 transition-transform inline-block">📋</span>
-          <h3 className="font-semibold text-gray-900">My Trips</h3>
-          <p className="text-sm text-gray-500 mt-1">Manage your rides</p>
-        </Link>
-      </div>
-
-      {/* My Communities */}
-      {communities.length > 0 && (
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">My Communities</h2>
-            <Link to="/communities" className="text-teal-600 hover:text-teal-700 text-sm font-medium">
-              View all →
-            </Link>
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
           </div>
+        ) : communities.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {communities.slice(0, 3).map(c => (
               <Link
@@ -120,8 +77,45 @@ export default function Dashboard() {
               </Link>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="bg-white rounded-xl shadow p-8 text-center border border-gray-100">
+            <span className="text-4xl block mb-3">🏘️</span>
+            <p className="text-gray-500">No communities yet. Join one or create your own!</p>
+          </div>
+        )}
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+        <Link
+          to="/communities"
+          className="bg-white rounded-xl shadow-md p-5 border border-gray-100 hover:shadow-lg hover:border-teal-200 transition-all text-center group"
+        >
+          <span className="text-3xl block mb-2 group-hover:scale-110 transition-transform inline-block">🏘️</span>
+          <h3 className="font-semibold text-gray-900 text-sm">Communities</h3>
+        </Link>
+        <Link
+          to="/trips/create"
+          className="bg-white rounded-xl shadow-md p-5 border border-gray-100 hover:shadow-lg hover:border-teal-200 transition-all text-center group"
+        >
+          <span className="text-3xl block mb-2 group-hover:scale-110 transition-transform inline-block">🚀</span>
+          <h3 className="font-semibold text-gray-900 text-sm">Create Trip</h3>
+        </Link>
+        <Link
+          to="/trips"
+          className="bg-white rounded-xl shadow-md p-5 border border-gray-100 hover:shadow-lg hover:border-teal-200 transition-all text-center group"
+        >
+          <span className="text-3xl block mb-2 group-hover:scale-110 transition-transform inline-block">🔍</span>
+          <h3 className="font-semibold text-gray-900 text-sm">Browse Trips</h3>
+        </Link>
+        <Link
+          to="/my-trips"
+          className="bg-white rounded-xl shadow-md p-5 border border-gray-100 hover:shadow-lg hover:border-teal-200 transition-all text-center group"
+        >
+          <span className="text-3xl block mb-2 group-hover:scale-110 transition-transform inline-block">📋</span>
+          <h3 className="font-semibold text-gray-900 text-sm">My Trips</h3>
+        </Link>
+      </div>
 
       {/* Recent Trips */}
       <div>
